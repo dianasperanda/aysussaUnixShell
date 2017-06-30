@@ -1,27 +1,21 @@
 #include<stdio.h>
 #include<unistd.h>
 #include<wait.h>
-#include "utils.h"
+#include "parse.h"
 #include "command.h"
 #include "completion.h"
 
 int main (int argc, char** argv)
 {
-  char *line, *s;
   int pid, cpid;
-
+  int l;
   initialize_readline ();	/* Bind our completer. */
 
   for ( ; done == 0; )
     {
-      line = readline ("@>: ");
+      readline ("@>: ");
 
-      if (!line)
-        break;
-      
-      s = stripwhite (line);
-
-      if (*s)
+      if (rl_point == rl_end && *rl_line_buffer)
         {
             pid = fork();
             if (pid < 0) {
@@ -33,14 +27,12 @@ int main (int argc, char** argv)
                 printf("[CPID %5d]: Terminated\n", cpid);
             }
             else {
-                add_history (s);
-                //parsing (s);
-                execute_line(s);
-                printf("[PID %5d]: Terminated\n", pid);
+                add_history (rl_line_buffer);
+                l = parsing();
+                if (l == 0)
+                    execute_line(rl_line_buffer);
             }
-        }
-
-      free (line);
+        }        
     }
   exit (0);
 }
