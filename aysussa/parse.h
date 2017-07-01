@@ -1,22 +1,26 @@
-#include <unistd.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <errno.h>
-#include <string.h>
-#include <strings.h>
-#include <stdlib.h>
-#include <time.h>
-#include <sys/types.h>
-#include <sys/file.h>
-#include <sys/stat.h>
-#include <readline/readline.h>
-#include <readline/history.h>
-#include <pwd.h>
-#include <wait.h>
+#include<stdio.h>
+#include<unistd.h>
+#include<wait.h>
+#include<fcntl.h>
+#include<stdlib.h>
+#include<string.h>
+#include<errno.h>
+#include<strings.h>
+#include<time.h>
+#include<sys/types.h>
+#include<sys/file.h>
+#include<sys/stat.h>
+#include<dirent.h>
+#include<pwd.h>
 #include "utils.h"
 
-int parsing ();
+#include<readline/readline.h>
+#include<readline/history.h>
+
+#include "command.h"
+#include "completion.h"
+
+int parsing (char*);
 
 typedef struct {
     char* first_word;
@@ -27,35 +31,40 @@ typedef struct {
 WORDS words;
 
 WORDS handle_line(char*, char*);
-void redirection_output(WORDS);
+int redirection_output(WORDS);
+void interrupt_handler(int sigInt);
 
-
-int parsing ()
+int parsing (char *buffer)
 {
     WORDS result;
     int i = 0;
     int found = 0;
     
-    for(i = 0; i < strlen(rl_line_buffer); i++) {
+    for(i = 0; i < strlen(buffer); i++) {
         
-        if(!rl_alphabetic(rl_line_buffer[i]) && !isspace(rl_line_buffer[i]))
+        if(!rl_alphabetic(buffer[i]) && !isspace(buffer[i]))
         {
-            if(rl_line_buffer[i] == '>')
+            if(buffer[i] == '>')
             {
-                result = handle_line(rl_line_buffer, ">");
+                result = handle_line(buffer, ">");
                 found = 1;
+                //system(result.first_word);
                 redirection_output(result);
             }
-            else if(rl_line_buffer[i] == '<')
+            else if(buffer[i] == '<')
             {
-                result = handle_line(rl_line_buffer, "<");
+                result = handle_line(buffer, "<");
                 found = 1;
             }
-            else if(rl_line_buffer[i] == '|')
+            else if(buffer[i] == '|')
             {
-                result = handle_line(rl_line_buffer, "|");
+                result = handle_line(buffer, "|");
                 found = 1;
             }
+        }
+        else {
+            execute_line(buffer);
+            return 0;
         }
     }
     
@@ -75,51 +84,48 @@ WORDS handle_line(char *buffer, char* arg)
     return words;
 }
 
-void redirection_output(WORDS w)
+void interrupt_handler(int sigInt) {
+	if(sigInt == SIGINT) {
+		printf("Error! Interrupt signal, CHILD process terminated");
+		fflush(stdout);
+		kill(getpid(), SIGTERM);
+	}
+}
+
+int redirection_output(WORDS w)
 {
-    pid_t cpid;
-    int rtrnstatus;
-    int outpt;
-    int save_out;
+	int pid, cpid, wstatus, fd;
 
-    outpt = open(w.second_word, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-    if (-1 == outpt) {
-           perror(w.second_word);
-           return;
-    }
+	signal (SIGINT, interrupt_handler);
 
-    /* Save standard output */
-    save_out = dup(fileno(stdout));
-   
-    if (-1 == dup2(outpt, fileno(stdout))) {
-           perror("Cannot redirect stdout");
-           return;
-     }   
+	pid = fork();
+	if(pid == -1) {
+		perror("fork");
+		return 0;
+	}
+	else if (pid==0) {
 
-        cpid=fork();
+		fd = open(w.second_word, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+		if (fd < 0) {
+			perror("open");
+			return -1;
+		}
+		dup2(fd, STDOUT_FILENO);
+        
+        	if (fd != STDOUT_FILENO) {
+           		 close(fd);
+		}
+        
+      		  sleep(5);
+              static char syscom[1024];
+              sprintf (syscom, w.first_word);
+      		  return (system (syscom));
+	}
+	else {
+		cpid=waitpid(0, &wstatus, 0);
+	}
 
-        if (cpid < 0 ) {
-                perror("Fork failed");
-                return;
-        }           
-        else if (cpid == 0) {
-        		execlp(w.first_word, w.second_word, w.argument, NULL);
-        } 
-                          
-        else {
-                /* Wait for child process to finish */
-                waitpid(cpid, &rtrnstatus, 0);
-
-                /* Restore standard output */
-                dup2(save_out, fileno(stdout));
-                close(save_out);
-                close(outpt);
-
-                if (WIFEXITED(rtrnstatus))
-                        printf("Child's exit code %d\n", WEXITSTATUS(rtrnstatus));
-                else
-                        printf("Child did not terminate with exit\n");          
-        }   
+	return 0;
 }
     
     

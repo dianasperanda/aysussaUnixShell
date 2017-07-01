@@ -14,7 +14,7 @@
 #include <readline/history.h>
 
 int com_list(char *);
-int com_help(char *);
+int com_cat(char *);
 int com_cd(char *);
 int com_pwd(char *);
 int com_quit(char *);
@@ -41,7 +41,7 @@ typedef struct {
 //builin
 COMMAND commands[] = {
   { "ls", com_list, "List files in DIR" },
-//   { "help", com_help, "Display this text" },
+  { "cat", com_cat, "Display this text" },
   { "cd", com_cd, "Change to directory DIR" },
   { "pwd", com_pwd, "Print the current working directory" },
   { "quit", com_quit, "Quit using Aysussa" },
@@ -115,41 +115,47 @@ int com_list(char *arg) {
   return (system (syscom));
 }
 
-int com_help(char *arg)
-{
-  register int i;
-  int printed = 0;
+// int com_help(char *arg)
+// {
+//   register int i;
+//   int printed = 0;
+// 
+//   for (i = 0; commands[i].name; i++)
+//     {
+//       if (!*arg || (strcmp (arg, commands[i].name) == 0))
+//         {
+//           printf ("%s\t\t%s.\n", commands[i].name, commands[i].doc);
+//           printed++;
+//         }
+//     }
+// 
+//   if (!printed)
+//     {
+//       printf ("No commands match `%s'.  Possibilties are:\n", arg);
+// 
+//       for (i = 0; commands[i].name; i++)
+//         {
+//           /* Print in six columns. */
+//           if (printed == 6)
+//             {
+//               printed = 0;
+//               printf ("\n");
+//             }
+// 
+//           printf ("%s\t", commands[i].name);
+//           printed++;
+//         }
+// 
+//       if (printed)
+//         printf ("\n");
+//     }
+//   return (0);
+// }
 
-  for (i = 0; commands[i].name; i++)
-    {
-      if (!*arg || (strcmp (arg, commands[i].name) == 0))
-        {
-          printf ("%s\t\t%s.\n", commands[i].name, commands[i].doc);
-          printed++;
-        }
-    }
-
-  if (!printed)
-    {
-      printf ("No commands match `%s'.  Possibilties are:\n", arg);
-
-      for (i = 0; commands[i].name; i++)
-        {
-          /* Print in six columns. */
-          if (printed == 6)
-            {
-              printed = 0;
-              printf ("\n");
-            }
-
-          printf ("%s\t", commands[i].name);
-          printed++;
-        }
-
-      if (printed)
-        printf ("\n");
-    }
-  return (0);
+int com_cat(char *arg) 
+{    
+    sprintf (syscom, "cat %s", arg);
+    return (system (syscom));
 }
 
 int com_cd(char *arg)

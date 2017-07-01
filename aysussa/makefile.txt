@@ -1,0 +1,15 @@
+CC = gcc -lreadline
+CFLAGS = -Wall
+
+TARGETS = aysussa
+
+all: $(TARGETS)
+
+aysussa: aysussa.o
+	$(CCO) $(CFLAGS) aysussa.o -o aysussa
+    
+clean:
+	rm -f *.o *~ a.out $(TARGETS)
+
+.c.o:
+	$(CC) $(CFLAGS) -c $<
