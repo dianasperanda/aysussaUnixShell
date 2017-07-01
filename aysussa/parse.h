@@ -1,26 +1,12 @@
-#include<stdio.h>
-#include<unistd.h>
-#include<wait.h>
-#include<fcntl.h>
-#include<stdlib.h>
-#include<string.h>
-#include<errno.h>
-#include<strings.h>
-#include<time.h>
-#include<sys/types.h>
-#include<sys/file.h>
-#include<sys/stat.h>
-#include<dirent.h>
-#include<pwd.h>
 #include "utils.h"
-
-#include<readline/readline.h>
-#include<readline/history.h>
-
 #include "command.h"
 #include "completion.h"
 
+#define READ_END 0
+#define WRITE_END 1
+
 int parsing (char*);
+
 
 typedef struct {
     char* first_word;
@@ -32,13 +18,13 @@ WORDS words;
 
 WORDS handle_line(char*, char*);
 int redirection_output(WORDS);
-void interrupt_handler(int sigInt);
+int redirection_input(WORDS);
+int piping(WORDS);
 
 int parsing (char *buffer)
 {
     WORDS result;
-    int i = 0;
-    int found = 0;
+    int i;
     
     for(i = 0; i < strlen(buffer); i++) {
         
@@ -47,19 +33,17 @@ int parsing (char *buffer)
             if(buffer[i] == '>')
             {
                 result = handle_line(buffer, ">");
-                found = 1;
-                //system(result.first_word);
                 redirection_output(result);
             }
             else if(buffer[i] == '<')
             {
                 result = handle_line(buffer, "<");
-                found = 1;
+                redirection_input(result);
             }
             else if(buffer[i] == '|')
             {
                 result = handle_line(buffer, "|");
-                found = 1;
+                piping(result);
             }
         }
         else {
@@ -68,7 +52,7 @@ int parsing (char *buffer)
         }
     }
     
-    return found;
+    return 0;
 }
 
 WORDS handle_line(char *buffer, char* arg)
@@ -84,19 +68,9 @@ WORDS handle_line(char *buffer, char* arg)
     return words;
 }
 
-void interrupt_handler(int sigInt) {
-	if(sigInt == SIGINT) {
-		printf("Error! Interrupt signal, CHILD process terminated");
-		fflush(stdout);
-		kill(getpid(), SIGTERM);
-	}
-}
-
 int redirection_output(WORDS w)
 {
 	int pid, cpid, wstatus, fd;
-
-	signal (SIGINT, interrupt_handler);
 
 	pid = fork();
 	if(pid == -1) {
@@ -123,19 +97,81 @@ int redirection_output(WORDS w)
 	}
 	else {
 		cpid=waitpid(0, &wstatus, 0);
+        
+        //nadodati još za cpid
 	}
 
 	return 0;
 }
+
+int redirection_input(WORDS w)
+{
+    pid_t cpid;
+    int rtrnstatus;
+
+    cpid = fork();
+
+    if (cpid < 0) {
+           perror("fork failed");
+           return -1;
+    }
+    else if (cpid == 0) {
+        static char syscom[1024];
+        sprintf (syscom, w.first_word);
+        return (system (syscom));
+    }
+    else {
+        
+         waitpid(cpid, &rtrnstatus, 0);
+ 
+         if (WIFEXITED(rtrnstatus))
+                 printf("Child's exit code %d\n", WEXITSTATUS(rtrnstatus));
+         else
+                 printf("Child did not terminate with exit\n"); 
+    }
     
+    return 0;
+}
+
+int piping(WORDS w)
+{
+    int pipefd[2];
+    int status;
+    pid_t pid;
+
+    if (pipe(pipefd) == -1) {
+        perror("pipe");
+        return -1;
+    }
+        
+    pid = fork();
+    if (pid == -1) {
+        perror("fork");
+        return -1;
+    }
+    if (pid == 0) {               
+
+        if (dup2(pipefd[WRITE_END], STDOUT_FILENO) == -1) {
+            perror("dup2");
+            return -1;
+        }
+
+        close(pipefd[READ_END]);
+        
+        if (pipefd[WRITE_END] != STDOUT_FILENO)
+            close(pipefd[WRITE_END]);
+        
+        static char syscom[1024];
+        sprintf (syscom, w.first_word);
+        return (system (syscom));
+        
+    }    
     
+    close(pipefd[WRITE_END]);
+    waitpid(pid, NULL, 0);
     
-    
-    
-    
-    
-    
-    
+    return 0;
+}
     
     
     
