@@ -78,41 +78,47 @@ WORDS handle_line(char *buffer, char* arg)
 
 int redirection_output(WORDS w)
 {
-	int pid, wstatus, fd;
+    int pid, wstatus, fd;
 
-	pid = fork();
-	if(pid == -1) {
-		perror("fork");
-		return 0;
-	}
-	else if (pid==0) {
+    pid = fork();
+    
+    if(pid == -1) {
+        
+        perror("fork");
+        return 0;
+    }
+    else if (pid==0) {
 
-		fd = open(w.second_word, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
-		if (fd < 0) {
-			perror("open");
-			return -1;
-		}
-		dup2(fd, STDOUT_FILENO);
+        fd = open(w.second_word, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
         
-        	if (fd != STDOUT_FILENO) {
-           		 close(fd);
-		}
+        if (fd < 0) {
+            
+            perror("open");
+            return -1;
+        }
         
-      		  sleep(5);
-              static char syscom[1024];
-              sprintf (syscom, w.first_word);
-      		  return (system (syscom));
-	}
-	else {
-		pid=waitpid(0, &wstatus, 0);
+        dup2(fd, STDOUT_FILENO);
+        
+        if (fd != STDOUT_FILENO)
+            close(fd);
+        
+        sleep(5);
+        
+        static char syscom[1024];
+        sprintf (syscom, w.first_word);
+        return (system (syscom));
+    }
+    else {
+        
+        pid=waitpid(0, &wstatus, 0);
         
         if (WIFEXITED(wstatus))
             printf("Child's exit code %d\n", WEXITSTATUS(wstatus));
          else
             printf("Child did not terminate with exit\n"); 
-	}
-
-	return 0;
+    }
+    
+    return 0;
 }
 
 int redirection_input(WORDS w)
@@ -123,10 +129,12 @@ int redirection_input(WORDS w)
     cpid = fork();
 
     if (cpid < 0) {
-           perror("fork failed");
-           return -1;
+    
+        perror("fork failed");
+        return -1;
     }
     else if (cpid == 0) {
+        
         static char syscom[1024];
         sprintf (syscom, w.first_word);
         return (system (syscom));
@@ -150,18 +158,22 @@ int piping(WORDS w)
     pid_t pid;
 
     if (pipe(pipefd) == -1) {
+        
         perror("pipe");
         return -1;
     }
         
     pid = fork();
+    
     if (pid == -1) {
+        
         perror("fork");
         return -1;
     }
     if (pid == 0) {               
 
         if (dup2(pipefd[WRITE_END], STDOUT_FILENO) == -1) {
+            
             perror("dup2");
             return -1;
         }
@@ -187,18 +199,12 @@ int background(char *buff)
 {
     int pid;
     int status;
-//     int x;
     
     pid = fork();
      
     if(pid == 0) {
+        
         setpgid(pid, 0);
-//         close(STDIN_FILENO);
-//         close(STDOUT_FILENO);
-//         close(STDERR_FILENO);
-//         x = open("/dev/null", O_RDWR);
-//         dup(x);
-//         dup(x);
         execvp(&buff[0], &buff);
         exit(1);
     }

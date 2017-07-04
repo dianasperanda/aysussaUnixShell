@@ -14,10 +14,11 @@
 #include <readline/history.h>
 
 int com_list(char *);
+int com_help(char *);
 int com_cat(char *);
 int com_cd(char *);
 int com_pwd(char *);
-int com_quit(char *);
+int com_quit();
 int com_remove(char *);
 int com_user();
 int com_make(char *);
@@ -26,6 +27,9 @@ int com_process(char *);
 int com_kill(char *);
 int com_move(char *);
 int com_clear();
+int com_exec(char *);
+int com_umask(char *);
+int com_exit();
 
 int execute_line (char*);
 
@@ -34,26 +38,28 @@ int done;
 typedef struct {
   char *name;
   rl_icpfunc_t *func;
-  char *doc;
 } COMMAND;
 
 
-//builin
 COMMAND commands[] = {
-  { "ls", com_list, "List files in DIR" },
-  { "cat", com_cat, "Display this text" },
-  { "cd", com_cd, "Change to directory DIR" },
-  { "pwd", com_pwd, "Print the current working directory" },
-  { "quit", com_quit, "Quit using Aysussa" },
-  { "rm", com_remove, "Remove FILE" },
-  { "whoami", com_user, "Who am I?" },
-  { "mkdir", com_make, "Make DIR" },
-  { "touch", com_touch, "Make FILE" },
-  { "ps", com_process, "List all your processes" },
-  { "kill", com_kill, "Kill process" },
-  { "mv", com_move, "Move file or rename" },
-  { "clear", com_clear, "Clear" },
-  { (char *)NULL, (rl_icpfunc_t *)NULL, (char *)NULL }
+  { "ls", com_list },
+  { "help", com_help },
+  { "cat", com_cat },
+  { "cd", com_cd },
+  { "pwd", com_pwd },
+  { "quit", com_quit },
+  { "rm", com_remove },
+  { "whoami", com_user },
+  { "mkdir", com_make },
+  { "touch", com_touch },
+  { "ps", com_process },
+  { "kill", com_kill },
+  { "mv", com_move },
+  { "clear", com_clear },
+  { "exec", com_exec },
+  { "umask", com_umask },
+  { "exit", com_exit },
+  { (char *)NULL, (rl_icpfunc_t *)NULL }
 };
 
 COMMAND *find_command ();
@@ -115,45 +121,20 @@ int com_list(char *arg) {
   return (system (syscom));
 }
 
-// int com_help(char *arg)
-// {
-//   register int i;
-//   int printed = 0;
-// 
-//   for (i = 0; commands[i].name; i++)
-//     {
-//       if (!*arg || (strcmp (arg, commands[i].name) == 0))
-//         {
-//           printf ("%s\t\t%s.\n", commands[i].name, commands[i].doc);
-//           printed++;
-//         }
-//     }
-// 
-//   if (!printed)
-//     {
-//       printf ("No commands match `%s'.  Possibilties are:\n", arg);
-// 
-//       for (i = 0; commands[i].name; i++)
-//         {
-//           /* Print in six columns. */
-//           if (printed == 6)
-//             {
-//               printed = 0;
-//               printf ("\n");
-//             }
-// 
-//           printf ("%s\t", commands[i].name);
-//           printed++;
-//         }
-// 
-//       if (printed)
-//         printf ("\n");
-//     }
-//   return (0);
-// }
+int com_help(char *arg)
+{
+    if (!arg)
+        arg = "";
+
+    sprintf (syscom, "help -dms %s", arg);
+    return (system (syscom));
+}
 
 int com_cat(char *arg) 
 {    
+    if (!arg)
+        perror("cat");
+    
     sprintf (syscom, "cat %s", arg);
     return (system (syscom));
 }
@@ -185,59 +166,117 @@ int com_pwd(char *ignore)
   return 0;
 }
 
-int com_quit(char *arg)
+int com_quit()
 {
   done = 1;
   return (0);
 }
 
 int com_remove(char *arg) {
+    
     if(!arg)
-        fprintf(stderr, "Missing argument!");
+    {
+        perror("rm")
+        return -1;
+    }
+    
+    sprintf (syscom, "rm %s", arg);
     
     sprintf (syscom, "rm -i %s", arg);
     return (system (syscom));
 }
 
-int com_user() {    
+int com_user() {
+    
     sprintf (syscom, "whoami");
     return (system (syscom));
 }
 
 int com_make(char *arg) {
+    
     if(!arg)
-        fprintf(stderr, "Missing argument!");
+    {
+        perror("mkdir")
+        return -1;
+    }
     
     sprintf (syscom, "mkdir %s", arg);
     return (system (syscom));
 }
 
 int com_touch(char *arg) {
+    
     if(!arg)
-        fprintf(stderr, "Missing argument!");
+    {
+        perror("touch")
+        return -1;
+    }
     
     sprintf (syscom, "touch %s", arg);
     return (system (syscom));
 }
 
 int com_process(char *arg) {
+    
     sprintf (syscom, "ps -u %s", arg);
     return (system (syscom));
 }
 
 int com_kill(char *arg) {
+    
+    if(!arg)
+    {
+        perror("kill")
+        return -1;
+    }
+    
     int pid = atoi(arg);
+    
     sprintf (syscom, "kill %d", pid);
     return (system (syscom));
 }
 
 int com_move(char *arg) {
+    
+    if(!arg)
+    {
+        perror("mv")
+        return -1;
+    }
+    
     sprintf (syscom, "mv %s", arg);
     return (system (syscom));
 }
 
 int com_clear() {
+    
     sprintf (syscom, "clear");
     return (system (syscom));
 }
 
+int com_exec(char *arg) {
+    
+  sprintf (syscom, "exec -cla %s", arg);
+  return (system (syscom));
+}
+
+int com_umask(char *arg) {
+    
+    if(!arg)
+        arg = "";
+    
+    sprintf (syscom, "umask -pS %s", arg);
+    return (system (syscom));
+}
+
+int com_exit() {
+    
+    int rtrnstatus;
+    
+    waitpid(getpid(), &rtrnstatus, 0);
+    
+    if (WIFEXITED(rtrnstatus))
+        printf("Closing...\n");
+    
+    return com_quit();
+}
