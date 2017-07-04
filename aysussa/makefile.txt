@@ -1,15 +1,14 @@
-CC = gcc -lreadline
-CFLAGS = -Wall
+GCC=gcc
+CFLAGS=-c -g -Wall
+LFLAGS=-lreadline
+EXE=aysussa
 
-TARGETS = aysussa
+all: ${EXE}.o
+    ${GCC} ${EXE}.o -o ${EXE} ${LFLAGS} 
 
-all: $(TARGETS)
+${EXE}.o: ${EXE}.c
+    ${GCC} ${CFLAGS} ${EXE}.c
 
-aysussa: aysussa.o
-	$(CCO) $(CFLAGS) aysussa.o -o aysussa
-    
 clean:
-	rm -f *.o *~ a.out $(TARGETS)
-
-.c.o:
-	$(CC) $(CFLAGS) -c $<
+    rm -rf *.o
+    rm -rf ${EXE}

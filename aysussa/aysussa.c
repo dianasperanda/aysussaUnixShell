@@ -17,8 +17,8 @@ int main (int argc, char** argv)
       
       if (*s)
       {
-            add_history(s);
-            parsing(s);
+        add_history(s);
+        parsing(s);
       }
       
       free(line);

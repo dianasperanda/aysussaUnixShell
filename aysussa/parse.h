@@ -6,7 +6,7 @@
 #define WRITE_END 1
 
 int parsing (char*);
-
+int background (char*);
 
 typedef struct {
     char* first_word;
@@ -25,6 +25,14 @@ int parsing (char *buffer)
 {
     WORDS result;
     int i;
+    int length = strlen(buffer);
+    
+    if(strcmp(&buffer[length - 1], "&") == 0)
+    {
+        buffer[length - 1] = '\0';
+        length -= 1;
+        background(buffer);
+    }
     
     for(i = 0; i < strlen(buffer); i++) {
         
@@ -70,7 +78,7 @@ WORDS handle_line(char *buffer, char* arg)
 
 int redirection_output(WORDS w)
 {
-	int pid, cpid, wstatus, fd;
+	int pid, wstatus, fd;
 
 	pid = fork();
 	if(pid == -1) {
@@ -96,9 +104,12 @@ int redirection_output(WORDS w)
       		  return (system (syscom));
 	}
 	else {
-		cpid=waitpid(0, &wstatus, 0);
+		pid=waitpid(0, &wstatus, 0);
         
-        //nadodati još za cpid
+        if (WIFEXITED(wstatus))
+            printf("Child's exit code %d\n", WEXITSTATUS(wstatus));
+         else
+            printf("Child did not terminate with exit\n"); 
 	}
 
 	return 0;
@@ -136,7 +147,6 @@ int redirection_input(WORDS w)
 int piping(WORDS w)
 {
     int pipefd[2];
-    int status;
     pid_t pid;
 
     if (pipe(pipefd) == -1) {
@@ -172,6 +182,35 @@ int piping(WORDS w)
     
     return 0;
 }
+
+int background(char *buff)
+{
+    int pid;
+    int status;
+//     int x;
     
+    pid = fork();
+     
+    if(pid == 0) {
+        setpgid(pid, 0);
+//         close(STDIN_FILENO);
+//         close(STDOUT_FILENO);
+//         close(STDERR_FILENO);
+//         x = open("/dev/null", O_RDWR);
+//         dup(x);
+//         dup(x);
+        execvp(&buff[0], &buff);
+        exit(1);
+    }
+    else
+    {
+        waitpid(pid, &status, WUNTRACED);
+        
+        if (WIFEXITED(status))
+                 printf("Child's exit code %d %d %d\n", WEXITSTATUS(status), getpid(), getppid());
+        else
+                 printf("Child did not terminate with exit\n"); 
+    }
     
-    
+    return 0;
+}
