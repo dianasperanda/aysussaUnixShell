@@ -176,7 +176,7 @@ int com_remove(char *arg) {
     
     if(!arg)
     {
-        perror("rm")
+        perror("rm");
         return -1;
     }
     
@@ -196,7 +196,7 @@ int com_make(char *arg) {
     
     if(!arg)
     {
-        perror("mkdir")
+        perror("mkdir");
         return -1;
     }
     
@@ -208,7 +208,7 @@ int com_touch(char *arg) {
     
     if(!arg)
     {
-        perror("touch")
+        perror("touch");
         return -1;
     }
     
@@ -226,7 +226,7 @@ int com_kill(char *arg) {
     
     if(!arg)
     {
-        perror("kill")
+        perror("kill");
         return -1;
     }
     
@@ -240,7 +240,7 @@ int com_move(char *arg) {
     
     if(!arg)
     {
-        perror("mv")
+        perror("mv");
         return -1;
     }
     
