@@ -69,8 +69,7 @@ int execute_line (char *line)
   register int i;
   COMMAND *command;
   char *word;
-
-  /* Isolate the command word. */
+  
   i = 0;
   while (line[i] && whitespace (line[i]))
     i++;
@@ -90,13 +89,11 @@ int execute_line (char *line)
       return (-1);
     }
 
-  /* Get argument to command, if any. */
   while (whitespace (line[i]))
     i++;
 
   word = line + i;
 
-  /* Call the function. */
   return ((*(command->func)) (word));
 }
 
@@ -271,12 +268,5 @@ int com_umask(char *arg) {
 
 int com_exit() {
     
-    int rtrnstatus;
-    
-    waitpid(getpid(), &rtrnstatus, 0);
-    
-    if (WIFEXITED(rtrnstatus))
-        printf("Closing...\n");
-    
-    return com_quit();
+    _exit(0);
 }

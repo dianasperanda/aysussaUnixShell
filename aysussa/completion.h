@@ -15,7 +15,7 @@
 
 void initialize_readline();
 char *command_generator(const char *, int);
-char **fileman_completion(const char *, int, int);
+char **aysussa_completion(const char *, int, int);
 char* dupstr (char *);
 
 char* dupstr (char *s)
@@ -51,7 +51,7 @@ char *command_generator (const char *text, int state)
   return ((char *)NULL);
 }
 
-char **fileman_completion (const char *text, int start, int end)
+char **aysussa_completion (const char *text, int start, int end)
 {
   char **matches;
 
@@ -66,5 +66,5 @@ char **fileman_completion (const char *text, int start, int end)
 void initialize_readline ()
 {
   rl_readline_name = "AySussa";
-  rl_attempted_completion_function = fileman_completion;
+  rl_attempted_completion_function = aysussa_completion;
 }

@@ -2,9 +2,6 @@
 #include "command.h"
 #include "completion.h"
 
-#define READ_END 0
-#define WRITE_END 1
-
 int parsing (char*);
 int background (char*);
 
@@ -19,7 +16,8 @@ WORDS words;
 WORDS handle_line(char*, char*);
 void redirection_output(char *, char*, char*);
 int redirection_input(WORDS);
-int piping(WORDS);
+int piping(char *, char *, char *, char*);
+int handle_line_for_pipe(char *buffer);
 
 int parsing (char *buffer)
 {
@@ -54,8 +52,7 @@ int parsing (char *buffer)
             else if(buffer[i] == '|')
             {
                 found = 1;
-                result = handle_line(buffer, "|");
-                piping(result);
+                handle_line_for_pipe(buffer);
             }
         }
     }
@@ -80,83 +77,125 @@ WORDS handle_line(char *buffer, char* arg)
     return words;
 }
 
-void redirection_output(char *word1, char *word2, char* argument)
+int handle_line_for_pipe(char *buffer) {
+    
+    char *token;
+    char first_pipe[20] = {'\0'};
+    char second_pipe[20] = {'\0'};
+    char first_word[20] = {'\0'};
+    char second_word[20] = {'\0'};
+    
+    token = strtok(buffer, "|");
+    strcpy(first_word, token);
+    while( token != NULL ) {   
+        token = strtok(NULL, "|");
+            if(token)
+                strcpy(second_word, token);
+    }
+    
+    token = strtok(first_word, " ");
+    token = strtok(NULL, " ");
+    if(token)
+        strcpy(first_pipe, token);
+    
+    token = strtok(second_word, " ");
+    token = strtok(NULL, " ");
+    if(token)
+        strcpy(second_pipe, token);
+    
+    remove_spaces(first_word);
+    if(strcmp(first_pipe, " ") != 0)
+        remove_spaces(first_pipe);
+
+    remove_spaces(second_word);
+    if(strcmp(second_pipe, " ") != 0)
+        remove_spaces(second_pipe);
+    
+    piping(first_word, second_word, first_pipe, second_pipe);
+    
+    return 0;
+}
+
+void redirection_output(char *first_word, char *second_word, char* argument)
 {
-    pid_t cpid;
-    int rtrnstatus;
+    int status;
     int outpt;
     int save_out;
 
-    outpt = open(word2, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    outpt = open(second_word, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (-1 == outpt) {
-           perror(word2);
+           perror(second_word);
            return;
     }
 
-    save_out = dup(fileno(stdout));
-    if (-1 == dup2(outpt, fileno(stdout))) {
+    save_out = dup(STDOUT_FILENO);
+    if (-1 == dup2(outpt, STDOUT_FILENO)) {
                 perror("Cannot redirect stdout");
                 return;
     }   
-    
-    cpid=fork();
-
-        if (cpid < 0 ) {
-                perror("Fork failed");
-                return;
-        }           
-        else if (cpid == 0) {
+              
+    char syscom[1024];
+    sprintf(syscom, first_word);
+    system(syscom);
             
-            char syscom[1024];
-            sprintf(syscom, word1);
-            system(syscom);
+    dup2(save_out, STDOUT_FILENO);
+    close(outpt);
+    close(save_out);
             
-            dup2(save_out, fileno(stdout));
-            close(outpt);
-            close(save_out);
-        } 
-                          
-        else {
-            waitpid(cpid, &rtrnstatus, 0);
-        }
+    waitpid(0, &status, 0);
+            
+    if (WIFEXITED(status))
+          printf("Child's exit code %d %d %d\n", WEXITSTATUS(status), getpid(), getppid());
+    else
+          printf("Child did not terminate with exit\n");
 }
 
 int redirection_input(WORDS w)
 {
-        pid_t cpid;
-        int rtrnstatus;
-
-        cpid = fork();
-
-        if (cpid < 0) {
-                perror("fork failed");
-                return -1;
+        int status;
+        int intput;
+        int save_in;
+        
+        intput = open(w.second_word, O_RDONLY, 0);
+        if (-1 == intput) {
+           perror(w.second_word);
+           _exit(0);
         }
-        else if (cpid == 0) {
-                execlp(w.first_word, w.first_word, w.second_word, NULL);
-        }
-        else {
+        
+        save_in = dup(STDIN_FILENO);
+        if (-1 == dup2(intput, STDIN_FILENO)) {
+                perror("Cannot redirect stdin");
+                _exit(0);
+        }   
+              
+        char syscom[1024];
+        sprintf(syscom, w.first_word);
+        system(syscom);
             
-                waitpid(cpid, &rtrnstatus, 0);
+        dup2(save_in, STDIN_FILENO);
+        close(intput);
+        close(save_in);
+            
+        waitpid(0, &status, 0);
                 
-                if (WIFEXITED(rtrnstatus))
-                        printf("Child's exit code %d\n", WEXITSTATUS(rtrnstatus));
-                else
-                        printf("Child did not terminate with exit\n"); 
-        }
+        if (WIFEXITED(status))
+               printf("Child's exit code %d %d %d\n", WEXITSTATUS(status), getpid(), getppid());
+        else
+               printf("Child did not terminate with exit\n"); 
         
         return 0;
 }
 
-int piping(WORDS w)
+int piping(char *first_word, char *second_word, char *first_pipe, char *second_pipe)
 {
- int pipefd[2];
-    pid_t pid;
+    int pipefd[2];
+    pid_t pid, pid2;
+    int status;
 
     if (pipe(pipefd) == -1) {
         
         perror("pipe");
-        return -1;
+        _exit(0);
     }
         
     pid = fork();
@@ -164,29 +203,60 @@ int piping(WORDS w)
     if (pid == -1) {
         
         perror("fork");
-        return -1;
+        _exit(0);
     }
     if (pid == 0) {               
 
-        if (dup2(pipefd[WRITE_END], STDOUT_FILENO) == -1) {
-            
-            perror("dup2");
-            return -1;
+        if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
+            perror("Firt child dup2");
+            _exit(0);
         }
 
-        close(pipefd[READ_END]);
+        close(pipefd[0]);
         
-        if (pipefd[WRITE_END] != STDOUT_FILENO)
-            close(pipefd[WRITE_END]);
+        if (pipefd[1] != STDOUT_FILENO)
+            close(pipefd[1]);
         
-        static char syscom[1024];
-        sprintf (syscom, w.first_word);
-        return (system (syscom));
+        if(strcmp(first_pipe, "\0") == 0)
+            execlp(first_word, first_word, NULL);
+        else
+            execlp(first_word, first_word, first_pipe, NULL);
         
     }    
+    close(pipefd[1]);
+
+    pid2 = fork();
     
-    close(pipefd[WRITE_END]);
+    if (pid2 == -1) {
+        perror("fork");
+        kill(pid, SIGTERM);
+        _exit(0);
+    }
+    if(pid2 == 0) {
+        if(dup2(pipefd[0], STDIN_FILENO) == -1) {
+            perror("2nd child dup2");
+            kill(pid, SIGTERM);
+            _exit(0);
+        }
+        
+        if (pipefd[0] != STDIN_FILENO)
+            close(pipefd[0]);
+            
+        if(strcmp(second_pipe, "\0") == 0)
+            execlp(second_word, second_word, NULL);
+        else
+            execlp(second_word, second_word, second_pipe, NULL);
+    }
+    
+    close(pipefd[0]);
+    
     waitpid(pid, NULL, 0);
+    waitpid(pid2, &status, 0);
+    
+    if (WIFEXITED(status))
+            printf("Child's exit code %d %d %d\n", WEXITSTATUS(status), getpid(), getppid());
+    else
+            printf("Child did not terminate with exit\n"); 
     
     return 0;
 }
@@ -197,7 +267,8 @@ int background(char *buff)
     int status;
     
     pid = fork();
-     
+    
+    if(pid < 0) perror("fork");
     if(pid == 0) {
         
         setpgid(pid, 0);

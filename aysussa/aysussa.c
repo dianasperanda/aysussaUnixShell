@@ -9,9 +9,8 @@ int main (int argc, char** argv)
   {
       line = readline ("@>: ");
       
-      if (!line) {
+      if (!line) 
         break;
-      }
       
       s = stripwhite(line);
       
@@ -22,9 +21,7 @@ int main (int argc, char** argv)
       }
       
       free(line);
-      
-    }
+  }
   
   return 0;
-
 }
